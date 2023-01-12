@@ -1,0 +1,226 @@
+--------Data Cleaning & Exploration of the Space Missions -------------
+
+--Show the Entire Table
+
+SELECT COMPANY,
+       LOCATION,
+	   DATE,
+	   TIME,
+	   ROCKET,
+	   MISSION,
+	   ROCKETSTATUS,
+	   PRICE,
+	   MISSIONSTATUS
+FROM space_missions$;
+
+--===Data Cleaning===--
+
+--====Separating location into individual columns for address, citystate and country; using parse ====
+
+SELECT LOCATION
+FROM space_missions$;
+
+--=== Replace periods with commas ===
+
+SELECT PARSENAME(REPLACE(LOCATION,',','.'),3) AS Address,
+       PARSENAME(REPLACE(LOCATION,',','.'),2) AS CityState,
+	   PARSENAME(REPLACE(LOCATION,',','.'),1) AS Country
+FROM space_missions$;
+
+--===== create 3 new columns for the newly split location) ======
+
+ALTER TABLE space_missions$
+ADD Address VARCHAR(150);
+
+UPDATE space_missions$
+SET Address = PARSENAME(REPLACE(LOCATION,',','.'),3);
+
+ALTER TABLE space_missions$
+ADD CityState VARCHAR(150);
+
+UPDATE space_missions$
+SET CityState = PARSENAME(REPLACE(LOCATION,',','.'),2);
+
+ALTER TABLE space_missions$
+ADD Country VARCHAR(150);
+
+UPDATE space_missions$
+SET Country = PARSENAME(REPLACE(LOCATION,',','.'),1);
+
+--=== all the updated the space mission on address,citystate,country====
+
+SELECT ADDRESS,CITYSTATE,COUNTRY FROM space_missions$;
+
+--=== Update the null values in price column into zero ====
+
+UPDATE space_missions$
+SET PRICE = 0
+WHERE PRICE IS NULL;
+
+--==== MissionStatus =====
+
+SELECT MISSIONSTATUS,COUNT(MISSIONSTATUS) AS "Total Missions" 
+FROM Space_Missions$
+WHERE MISSIONSTATUS IN ('Success','Failure','Partial Failure','Prelaunch Failure')
+GROUP BY MISSIONSTATUS 
+ORDER BY 2 DESC;
+
+--==== RocketStatus ====
+
+SELECT ROCKETSTATUS,COUNT(ROCKETSTATUS) AS "Total Rockets"
+FROM Space_Missions$
+WHERE ROCKETSTATUS IN ('Active','Retired')
+GROUP BY ROCKETSTATUS;
+
+
+--=== Total Space missions=====
+
+SELECT COUNT(*) AS 'TOTAL SPACE MISSIONS'
+FROM Space_Missions$;
+
+--===Total companies=====
+
+SELECT COUNT(DISTINCT(COMPANY)) AS 'TOTAL COMPANIES'
+FROM Space_Missions$;
+
+--===== TOTAL MISSIONS =====
+
+SELECT COUNT(DISTINCT(MISSION)) AS 'TOTAL MISSIONS'
+FROM Space_Missions$;
+
+--=== TOTAL ROCKETS =====
+
+SELECT COUNT(DISTINCT(ROCKET)) AS 'TOTAL ROCKETS'
+FROM Space_Missions$;
+
+--=== Total Countries ===
+
+SELECT COUNT(DISTINCT(COUNTRY)) AS 'TOTAL COUNTRIES'
+FROM space_missions$;
+
+ --==== Country by rocketlaunch ===
+
+SELECT DISTINCT COUNTRY, COUNT(COUNTRY)  AS ROCKETLAUNCH
+FROM space_missions$
+GROUP BY COUNTRY
+ORDER BY ROCKETLAUNCH DESC;
+
+ --==== Company by rocketlaunch ====
+
+SELECT DISTINCT COMPANY, COUNT(COMPANY) AS ROCKETLAUNCH
+FROM space_missions$
+GROUP BY COMPANY
+ORDER BY ROCKETLAUNCH DESC;
+
+--==== TOP 10 Countries having active rockets =====
+
+SELECT TOP (10) COUNTRY, COUNT(ROCKET) AS ACTIVEROCKETS
+FROM space_missions$
+WHERE MISSIONSTATUS = 'SUCCESS'
+GROUP BY COUNTRY
+ORDER BY 2 DESC;
+
+--==== TOP 10 Countries having Inactive rockets ====
+
+SELECT TOP (10) COUNTRY, COUNT(ROCKET) AS INACTIVEROCKETS
+FROM space_missions$
+WHERE MISSIONSTATUS = 'FAILURE'
+GROUP BY COUNTRY
+ORDER BY 2 DESC;
+
+--==== TOP 10 Company having active rockets ====
+
+SELECT TOP (10) COMPANY, COUNT(ROCKET) AS ACTIVEROCKETS
+FROM space_missions$
+WHERE MISSIONSTATUS = 'SUCCESS'
+GROUP BY COMPANY
+ORDER BY 2 DESC;
+
+--==== TOP 10 Company having Inactive rockets =====
+
+SELECT TOP (10) COMPANY, COUNT(ROCKET) AS INACTIVEROCKETS
+FROM space_missions$
+WHERE MISSIONSTATUS = 'FAILURE'
+GROUP BY COMPANY
+ORDER BY 2 DESC;
+
+--===== No of Missions by Year =====
+
+WITH TEMPTABLE AS (
+SELECT *,
+YEAR(DATE) AS YEAR 
+FROM space_missions$
+)
+SELECT YEAR, COUNT(YEAR) AS NO_OF_MISSION
+FROM TEMPTABLE
+GROUP BY YEAR
+ORDER BY 2 DESC;
+
+--=====Country wise spend total amount in us millions======
+
+WITH TEMPTABLE AS (
+SELECT *,
+CAST(REPLACE(PRICE,',','') AS DECIMAL) AS AMOUNT
+FROM space_missions$
+)
+SELECT COUNTRY,SUM(AMOUNT) AS TOTAL_AMOUNT
+FROM TEMPTABLE
+WHERE AMOUNT IS NOT NULL
+GROUP BY COUNTRY 
+ORDER BY 2 DESC;
+
+--=====Country wise spend Avg amount in us millions======
+
+WITH TEMPTABLE AS (
+SELECT *,
+CAST(REPLACE(PRICE,',','') AS DECIMAL) AS AMOUNT
+FROM space_missions$
+)
+SELECT COUNTRY,ROUND(AVG(AMOUNT),2) AS AVG_AMOUNT
+FROM TEMPTABLE
+WHERE AMOUNT IS NOT NULL
+GROUP BY COUNTRY
+ORDER BY 2 DESC;
+
+--=====Company wise spend total amount in us millions======
+
+WITH TEMPTABLE AS (
+SELECT *,
+CAST(REPLACE(PRICE,',','') AS DECIMAL) AS AMOUNT
+FROM space_missions$
+)
+SELECT COMPANY,SUM(AMOUNT) AS Total_AMOUNT
+FROM TEMPTABLE
+WHERE AMOUNT IS NOT NULL
+GROUP BY COMPANY
+ORDER BY 2 DESC;
+
+--=====Company wise spend Avg amount in us millions======
+
+WITH TEMPTABLE AS (
+SELECT *,
+CAST(REPLACE(PRICE,',','') AS DECIMAL) AS AMOUNT
+FROM space_missions$
+)
+SELECT COMPANY,ROUND(AVG(AMOUNT),2) AS AVG_AMOUNT
+FROM TEMPTABLE
+WHERE AMOUNT IS NOT NULL
+GROUP BY COMPANY
+ORDER BY 2 DESC;
+
+SELECT * FROM space_missions$;
+
+--==== SUCCESS RATE & FAILURE RATE GLOBAL =====
+
+WITH TEMPTABLE AS (
+SELECT 
+CASE
+WHEN MISSIONSTATUS = 'SUCCESS' THEN 'SUCCESS_RATE'
+ELSE 'FAIL'
+END AS STATUS_RATE
+FROM space_missions$
+)
+SELECT STATUS_RATE,COUNT(*) AS TOTAL_MISSIONS,
+CONVERT(DECIMAL(5,2),100.0 * COUNT(*) / (SELECT COUNT(*) FROM TEMPTABLE)) AS PERCENTAGE_RATE
+FROM TEMPTABLE
+GROUP BY STATUS_RATE;
